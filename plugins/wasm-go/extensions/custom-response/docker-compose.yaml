@@ -13,7 +13,7 @@ services:
       - ./plugin.wasm:/etc/envoy/main.wasm
 
   httpbin:
-    image: kennethreitz/httpbin:latest
+    image: cr7258/nettool:v1
     networks:
       - wasmtest
     ports:
