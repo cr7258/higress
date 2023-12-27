@@ -29,6 +29,7 @@ func main() {
 	wrapper.SetCtx(
 		"custom-response",
 		wrapper.ParseConfigBy(parseConfig),
+		wrapper.ProcessRequestHeadersBy(onHttpRequestHeaders),
 		wrapper.ProcessResponseHeadersBy(onHttpResponseHeaders),
 	)
 }
@@ -77,11 +78,20 @@ func parseConfig(json gjson.Result, config *CustomResponseConfig, log wrapper.Lo
 	return nil
 }
 
-func onHttpResponseHeaders(ctx wrapper.HttpContext, config CustomResponseConfig, log wrapper.Log) types.Action {
-	if len(config.enableOnStatus) == 0 {
-		proxywasm.SendHttpResponse(config.statusCode, config.headers, []byte(config.body), -1)
+func onHttpRequestHeaders(ctx wrapper.HttpContext, config CustomResponseConfig, log wrapper.Log) types.Action {
+	fmt.Println("xxxxxxxxxxxxxxxxxxx")
+	fmt.Println("onHttpRequestHeaders")
+
+	if len(config.enableOnStatus) != 0 {
 		return types.ActionContinue
 	}
+	proxywasm.SendHttpResponse(config.statusCode, config.headers, []byte(config.body), -1)
+	return types.ActionContinue
+}
+
+func onHttpResponseHeaders(ctx wrapper.HttpContext, config CustomResponseConfig, log wrapper.Log) types.Action {
+	fmt.Println("xxxxxxxxxxxxxxxxxxx")
+	fmt.Println("onHttpResponseHeaders")
 
 	// enableOnStatus is not empty, compare the status code.
 	// if match the status code, mock the response.
