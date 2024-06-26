@@ -19,7 +19,7 @@ jobs:
     environment:
       name: image-registry-wasm-go-plugin
     env:
-      PLUGIN_IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'higress-registry.cn-hangzhou.cr.aliyuncs.com' }}
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'higress-registry.cn-hangzhou.cr.aliyuncs.com' }}
     steps:
       - name: "Checkout ${{ github.ref }}"
         uses: actions/checkout@v3
@@ -42,7 +42,7 @@ jobs:
           version: 1.2.0
 
       - name: Login to Docker Registry
-        run: oras login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} ${{ env.PLUGIN_IMAGE_REGISTRY }}
+        run: oras login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} ${{ env.IMAGE_REGISTRY }}
 
       - name: Build Plugin Image and Push
         working-directory: plugins/wasm-go
@@ -57,7 +57,7 @@ jobs:
           
           for plugin in ${PLUGIN_DIRS[@]}; do
             echo "Building and pushing image for plugin: ${plugin}"
-            IMAGE="${PLUGIN_IMAGE_REGISTRY}/plugins/wasm-go-${plugin}:${PLUGIN_VERSION}"
+            IMAGE="${IMAGE_REGISTRY}/plugins/wasm-go-${plugin}:${PLUGIN_VERSION}"
             PLUGIN_DIR="plugins/wasm-go/extensions/${plugin}"
           
             GOPROXY="https://proxy.golang.org,direct" PLUGIN_NAME="${plugin}" make build
