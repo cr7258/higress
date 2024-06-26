@@ -10,7 +10,7 @@ BUILDER ?= ${BUILDER_REGISTRY}wasm-go-builder:go${GO_VERSION}-tinygo${TINYGO_VER
 BUILD_TIME := $(shell date "+%Y%m%d-%H%M%S")
 COMMIT_ID := $(shell git rev-parse --short HEAD 2>/dev/null)
 IMAGE_TAG = $(if $(strip $(PLUGIN_VERSION)),${PLUGIN_VERSION},${BUILD_TIME}-${COMMIT_ID})
-IMG ?= ${REGISTRY}wasm-go-${PLUGIN_NAME}:${IMAGE_TAG}
+IMG ?= ${REGISTRY}${PLUGIN_NAME}:${IMAGE_TAG}
 GOPROXY := $(shell go env GOPROXY)
 EXTRA_TAGS ?=
 
