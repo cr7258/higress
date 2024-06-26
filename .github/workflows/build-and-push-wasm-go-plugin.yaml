@@ -46,7 +46,7 @@ jobs:
             PLUGIN_DIRS=$(basename -a ./extensions/*)
           fi
           
-          for plugin in ${PLUGIN_DIRS[@]}; do
+          for plugin in "${PLUGIN_DIRS[@]"}; do
             echo "Build and push wasm go plugin: ${plugin}"
             max_retries=3
             retries=0
