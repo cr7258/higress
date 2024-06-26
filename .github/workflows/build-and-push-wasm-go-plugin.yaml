@@ -26,16 +26,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-
       - name: Setup ORAS
         uses: oras-project/setup-oras@v1
         with:
@@ -58,7 +48,7 @@ jobs:
           for plugin in ${PLUGIN_DIRS[@]}; do
             echo "Building and pushing image for plugin: ${plugin}"
             IMAGE="${IMAGE_REGISTRY}/plugins/wasm-go-${plugin}:${PLUGIN_VERSION}"
-            PLUGIN_DIR="plugins/wasm-go/extensions/${plugin}"
+            PLUGIN_DIR="./extensions/${plugin}"
           
             GOPROXY="https://proxy.golang.org,direct" PLUGIN_NAME="${plugin}" make build
             tar czvf ${PLUGIN_DIR}/plugin.tar.gz ${PLUGIN_DIR}/plugin.wasm
