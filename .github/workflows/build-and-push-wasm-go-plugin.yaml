@@ -46,9 +46,11 @@ jobs:
             PLUGIN_DIRS=$(basename -a ./extensions/*)
           fi
           
-          for plugin in ${PLUGIN_DIRS[@]}; do
+          for plugin in "${PLUGIN_DIRS[@]}"; do
             max_retries=3
+            echo "$max_retries"
             retries=0
+            echo "$retries"
             while [ ${retries} -lt ${MAX_RETRIES} ]; do       
               echo "Build and push wasm go plugin: ${plugin}"
               IMAGE="${{ env.IMAGE_REGISTRY_SERVICE }}/${{ env.IMAGE_REPOSITORY }}/wasm-go-${plugin}:${PLUGIN_VERSION}"
@@ -56,8 +58,8 @@ jobs:
               GOPROXY="https://proxy.golang.org,direct" PLUGIN_NAME="${plugin}" make build
               
               if [ $? -eq 0 ]; then
-                tar czvf ${PLUGIN_DIR}/plugin.tar.gz ${PLUGIN_DIR}/plugin.wasm
-                oras push $IMAGE ${PLUGIN_DIR}/plugin.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
+                tar czvf "${PLUGIN_DIR}/plugin.tar.gz" "${PLUGIN_DIR}/plugin.wasm"
+                oras push "$IMAGE" "${PLUGIN_DIR}/plugin.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip"
                 break
               else
                 (( retries++ ))
