@@ -19,8 +19,8 @@ jobs:
     environment:
       name: image-registry-wasm-go-plugin
     env:
-      IMAGE_REGISTRY_SERVICE: ${{ vars.IMAGE_REGISTRY || 'higress-registry.cn-hangzhou.cr.aliyuncs.com' }}
-      IMAGE_REPOSITORY: ${{ vars.IMAGE_REGISTRY || 'plugins' }}
+      IMAGE_REGISTRY_SERVICE: ${{ vars.IMAGE_REGISTRY_SERVICE || 'higress-registry.cn-hangzhou.cr.aliyuncs.com' }}
+      IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'plugins' }}
     steps:
       - name: "Checkout ${{ github.ref }}"
         uses: actions/checkout@v3
