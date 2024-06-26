@@ -43,7 +43,7 @@ jobs:
             PLUGIN_DIRS=(${{ github.event.inputs.plugin_name }})
           else
             PLUGIN_VERSION=${{ github.ref_name }}
-            PLUGIN_DIRS=$(basename ./extensions/*)
+            PLUGIN_DIRS=$(basename -a ./extensions/*)
           fi
           
           for plugin in ${PLUGIN_DIRS[@]}; do
