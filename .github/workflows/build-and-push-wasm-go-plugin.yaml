@@ -60,7 +60,7 @@ jobs:
                 oras push $IMAGE ${PLUGIN_DIR}/plugin.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
                 break
               else
-                retries=(( retries++ ))
+                (( retries++ ))
                 echo "Build failed. Retrying (${retries}/${max_retries})..."
               fi
             done
