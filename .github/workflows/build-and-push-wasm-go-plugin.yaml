@@ -43,10 +43,10 @@ jobs:
             PLUGIN_DIRS=(${{ github.event.inputs.plugin_name }})
           else
             PLUGIN_VERSION=${{ github.ref_name }}
-            PLUGIN_DIRS=$(basename -a ./extensions/*)
+            PLUGIN_DIRS=$(basename ./extensions/*)
           fi
           
-          for plugin in "${PLUGIN_DIRS[@]}"; do
+          for plugin in ${PLUGIN_DIRS[@]}; do
             echo "Build and push wasm go plugin: ${plugin}"
             max_retries=3
             retries=0
