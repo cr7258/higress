@@ -50,7 +50,7 @@ jobs:
             echo "Build and push wasm go plugin: ${plugin}"
             max_retries=3
             retries=0
-            while [[ "${retries}" -lt "${MAX_RETRIES}" ]]; do
+            while [[ "${retries}" -lt "${max_retries}" ]]; do
               IMAGE="${{ env.IMAGE_REGISTRY_SERVICE }}/${{ env.IMAGE_REPOSITORY }}/wasm-go-${plugin}:${PLUGIN_VERSION}"
               PLUGIN_DIR="./extensions/${plugin}"      
               GOPROXY="https://proxy.golang.org,direct" PLUGIN_NAME="${plugin}" make build
