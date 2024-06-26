@@ -46,11 +46,11 @@ jobs:
           fi
           
           for plugin in ${PLUGIN_DIRS[@]}; do
-            echo "Building and pushing image for plugin: ${plugin}"
+            echo "Building and pushing wasm go plugin: ${plugin}"
             IMAGE="${IMAGE_REGISTRY}/plugins/wasm-go-${plugin}:${PLUGIN_VERSION}"
             PLUGIN_DIR="./extensions/${plugin}"
           
             GOPROXY="https://proxy.golang.org,direct" PLUGIN_NAME="${plugin}" make build
             tar czvf ${PLUGIN_DIR}/plugin.tar.gz ${PLUGIN_DIR}/plugin.wasm
-            oras push $IMAGE_NAME ${PLUGIN_DIR}/plugin.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
+            oras push $IMAGE ${PLUGIN_DIR}/plugin.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
           done
