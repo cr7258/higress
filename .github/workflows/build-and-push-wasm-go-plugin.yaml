@@ -31,11 +31,12 @@ jobs:
         with:
           version: 1.2.0
 
+      - name: Login to Docker Registry
+        run: oras login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} ${{ env.IMAGE_REGISTRY }}
+
       - name: Build Plugin Image and Push
         working-directory: plugins/wasm-go
         run: |
-          oras login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} ${{ env.IMAGE_REGISTRY }}
-          
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             PLUGIN_VERSION=${{ github.event.inputs.plugin_version }}
             PLUGIN_DIRS=(${{ github.event.inputs.plugin_name }})
@@ -46,7 +47,7 @@ jobs:
           
           for plugin in ${PLUGIN_DIRS[@]}; do
             echo "Building and pushing wasm go plugin: ${plugin}"
-            IMAGE="${IMAGE_REGISTRY}/plugins/wasm-go-${plugin}:${PLUGIN_VERSION}"
+            IMAGE="${IMAGE_REGISTRY}/wasm-go-${plugin}:${PLUGIN_VERSION}"
             PLUGIN_DIR="./extensions/${plugin}"
           
             GOPROXY="https://proxy.golang.org,direct" PLUGIN_NAME="${plugin}" make build
