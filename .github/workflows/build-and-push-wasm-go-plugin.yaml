@@ -55,13 +55,12 @@ jobs:
             while [[ "${RETRIES}" -lt "${MAX_RETRIES}" ]]; do
               IMAGE="${{ env.IMAGE_REGISTRY_SERVICE }}/${{ env.IMAGE_REPOSITORY }}/wasm-go-${PLUGIN}:${PLUGIN_VERSION}"
               PLUGIN_DIR="./extensions/${PLUGIN}"      
-              GOPROXY="https://proxy.golang.org,direct" PLUGIN_NAME="${PLUGIN}" make build
+              GOPROXY="https://proxy.golang.org,direct" PLUGIN_NAME="${PLUGIN}" make build EXTRA_TAGS=proxy_wasm_version_0_2_100
           
               if [[ $? -eq 0 ]]; then
                 tar czvf "${PLUGIN_DIR}/plugin.tar.gz" "${PLUGIN_DIR}/plugin.wasm"
                 PUSH_FILES=("${PLUGIN_DIR}/plugin.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip")
             
-
                 oras push "${IMAGE}" "${PUSH_FILES[@]}"
                 break
               else
