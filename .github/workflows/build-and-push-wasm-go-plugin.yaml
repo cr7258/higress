@@ -60,18 +60,7 @@ jobs:
               if [[ $? -eq 0 ]]; then
                 tar czvf "${PLUGIN_DIR}/plugin.tar.gz" "${PLUGIN_DIR}/plugin.wasm"
                 PUSH_FILES=("${PLUGIN_DIR}/plugin.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip")
-                declare -A FILES=(
-                  ["spec.yaml"]="application/vnd.module.wasm.spec.v1+yaml"
-                  ["README.md"]="application/vnd.module.wasm.doc.v1+markdown"
-                  ["README_EN.md"]="application/vnd.module.wasm.doc.v1.en+markdown"
-                )
-                
-                for FILE in "${!FILES[@]}"; do
-                  FILE_PATH="${PLUGIN_DIR}/${FILE}"
-                  if [[ -f "${FILE_PATH}" ]]; then
-                    PUSH_FILES+=("${FILE_PATH}:${FILES[$FILE]}")
-                  fi
-                done
+            
 
                 oras push "${IMAGE}" "${PUSH_FILES[@]}"
                 break
