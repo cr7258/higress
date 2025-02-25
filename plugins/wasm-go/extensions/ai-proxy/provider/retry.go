@@ -1,11 +1,13 @@
 package provider
 
 import (
+	"net/http"
+	"regexp"
+
 	"github.com/alibaba/higress/plugins/wasm-go/extensions/ai-proxy/util"
 	"github.com/alibaba/higress/plugins/wasm-go/pkg/wrapper"
 	"github.com/higress-group/proxy-wasm-go-sdk/proxywasm"
 	"github.com/tidwall/gjson"
-	"net/http"
 )
 
 const (
@@ -20,6 +22,8 @@ type retryOnFailure struct {
 	maxRetries int64 `required:"false" yaml:"maxRetries" json:"maxRetries"`
 	// @Title zh-CN 重试超时时间
 	retryTimeout int64 `required:"false" yaml:"retryTimeout" json:"retryTimeout"`
+	// @Title zh-CN 需要进行重试的原始请求的状态码，支持正则表达式匹配
+	retryOnStatus []string `required:"false" yaml:"retryOnStatus" json:"retryOnStatus"`
 }
 
 func (r *retryOnFailure) FromJson(json gjson.Result) {
@@ -32,10 +36,27 @@ func (r *retryOnFailure) FromJson(json gjson.Result) {
 	if r.retryTimeout == 0 {
 		r.retryTimeout = 30 * 1000
 	}
+	for _, status := range json.Get("retryOnStatus").Array() {
+		r.retryOnStatus = append(r.retryOnStatus, status.String())
+	}
+	// If retryOnStatus is empty, default to retry on 4xx and 5xx
+	if len(r.retryOnStatus) == 0 {
+		r.retryOnStatus = []string{"4.*", "5.*"}
+	}
 }
 
 func (c *ProviderConfig) isRetryOnFailureEnabled() bool {
 	return c.retryOnFailure.enabled
+}
+
+func (c *ProviderConfig) matchRetryStatus(status string) bool {
+	for _, pattern := range c.retryOnFailure.retryOnStatus {
+		matched, _ := regexp.MatchString(pattern, status)
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *ProviderConfig) retryFailedRequest(activeProvider Provider, ctx wrapper.HttpContext, log wrapper.Log) {
