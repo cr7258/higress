@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/alibaba/higress/plugins/wasm-go/extensions/ai-proxy/util"
-	"github.com/alibaba/higress/plugins/wasm-go/pkg/log"
-	"github.com/alibaba/higress/plugins/wasm-go/pkg/wrapper"
 	"github.com/higress-group/proxy-wasm-go-sdk/proxywasm/types"
+	"github.com/higress-group/wasm-go/pkg/log"
+	"github.com/higress-group/wasm-go/pkg/wrapper"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -82,7 +82,7 @@ func (m *doubaoProvider) TransformRequestBody(ctx wrapper.HttpContext, apiName A
 		// 移除火山 responses 接口暂时不支持的参数
 		// 参考: https://www.volcengine.com/docs/82379/1569618
 		// TODO: 这里应该用 DTO 处理
-		for _, param := range []string{"parallel_tool_calls", "tool_choice", "stream_options"} {
+		for _, param := range []string{"parallel_tool_calls", "tool_choice"} {
 			body, err = sjson.DeleteBytes(body, param)
 			if err != nil {
 				log.Warnf("[doubao] failed to delete %s in request body, err: %v", param, err)
