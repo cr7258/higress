@@ -10,7 +10,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// Route represents a route configuration
 type Route struct {
 	Name          string                 `json:"name"`
 	Version       string                 `json:"version,omitempty"`
@@ -24,63 +23,48 @@ type Route struct {
 	CustomConfigs map[string]interface{} `json:"customConfigs,omitempty"`
 }
 
-// RoutePath represents path matching configuration
 type RoutePath struct {
 	MatchType     string `json:"matchType"`
 	MatchValue    string `json:"matchValue"`
 	CaseSensitive bool   `json:"caseSensitive,omitempty"`
 }
 
-// RouteMatch represents header or URL parameter matching configuration
 type RouteMatch struct {
 	Key        string `json:"key"`
 	MatchType  string `json:"matchType"`
 	MatchValue string `json:"matchValue"`
 }
 
-// RouteService represents a service in the route
 type RouteService struct {
 	Name   string `json:"name"`
 	Port   int    `json:"port"`
 	Weight int    `json:"weight"`
 }
 
-// RouteAuthConfig represents authentication configuration for a route
 type RouteAuthConfig struct {
 	Enabled          bool     `json:"enabled"`
 	AllowedConsumers []string `json:"allowedConsumers,omitempty"`
 }
 
-// RouteResponse represents the API response for route operations
 type RouteResponse = higress.APIResponse[Route]
 
-// RegisterRouteTools registers all route management tools
 func RegisterRouteTools(mcpServer *common.MCPServer, client *higress.HigressClient) {
-	// List all routes
 	mcpServer.AddTool(
 		mcp.NewTool("list-routes", mcp.WithDescription("List all available routes")),
 		handleListRoutes(client),
 	)
-
-	// Get specific route
 	mcpServer.AddTool(
 		mcp.NewToolWithRawSchema("get-route", "Get detailed information about a specific route", getRouteSchema()),
 		handleGetRoute(client),
 	)
-
-	// Add new route
 	mcpServer.AddTool(
 		mcp.NewToolWithRawSchema("add-route", "Add a new route", getAddRouteSchema()),
 		handleAddRoute(client),
 	)
-
-	// Update existing route
 	mcpServer.AddTool(
 		mcp.NewToolWithRawSchema("update-route", "Update an existing route", getUpdateRouteSchema()),
 		handleUpdateRoute(client),
 	)
-
-	// Delete existing route
 	mcpServer.AddTool(
 		mcp.NewToolWithRawSchema("delete-route", "Delete an existing route", getRouteSchema()),
 		handleDeleteRoute(client),

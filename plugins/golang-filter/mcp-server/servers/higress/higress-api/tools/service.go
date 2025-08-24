@@ -10,7 +10,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// ServiceSource represents a service source configuration
 type ServiceSource struct {
 	Name       string                 `json:"name"`
 	Version    string                 `json:"version,omitempty"`
@@ -24,30 +23,22 @@ type ServiceSource struct {
 	Valid      bool                   `json:"valid,omitempty"`
 }
 
-// ServiceSourceAuthN represents authentication configuration for service source
 type ServiceSourceAuthN struct {
 	Enabled    bool                   `json:"enabled"`
 	Properties map[string]interface{} `json:"properties,omitempty"`
 }
 
-// ServiceSourceResponse represents the API response for service source operations
 type ServiceSourceResponse = higress.APIResponse[ServiceSource]
 
-// RegisterServiceTools registers all service source management tools
 func RegisterServiceTools(mcpServer *common.MCPServer, client *higress.HigressClient) {
-	// List all service sources
 	mcpServer.AddTool(
 		mcp.NewTool("list-service-sources", mcp.WithDescription("List all available service sources")),
 		handleListServiceSources(client),
 	)
-
-	// Get specific service source
 	mcpServer.AddTool(
 		mcp.NewToolWithRawSchema("get-service-source", "Get detailed information about a specific service source", getServiceSourceSchema()),
 		handleGetServiceSource(client),
 	)
-
-	// Add new service source
 	mcpServer.AddTool(
 		mcp.NewToolWithRawSchema("add-service-source", "Add a new service source", getAddServiceSourceSchema()),
 		handleAddServiceSource(client),
@@ -58,8 +49,6 @@ func RegisterServiceTools(mcpServer *common.MCPServer, client *higress.HigressCl
 		mcp.NewToolWithRawSchema("update-service-source", "Update an existing service source", getUpdateServiceSourceSchema()),
 		handleUpdateServiceSource(client),
 	)
-
-	// Delete existing service source
 	mcpServer.AddTool(
 		mcp.NewToolWithRawSchema("delete-service-source", "Delete an existing service source", getServiceSourceSchema()),
 		handleDeleteServiceSource(client),
