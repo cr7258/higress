@@ -303,7 +303,6 @@ func getAddRouteSchema() json.RawMessage {
 							"properties": {
 								"matchType": {"type": "string", "enum": ["PRE", "EQUAL", "REGULAR"], "description": "Match type of header"},
 								"matchValue": {"type": "string", "description": "Value to match"},
-								"caseSensitive": {"type": "boolean", "description": "Whether matching is case sensitive"},
 								"key": {"type": "string", "description": "Header key name"}
 							},
 							"required": ["matchType", "matchValue", "key"]
@@ -317,7 +316,6 @@ func getAddRouteSchema() json.RawMessage {
 							"properties": {
 								"matchType": {"type": "string", "enum": ["PRE", "EQUAL", "REGULAR"], "description": "Match type of URL parameter"},
 								"matchValue": {"type": "string", "description": "Value to match"},
-								"caseSensitive": {"type": "boolean", "description": "Whether matching is case sensitive"},
 								"key": {"type": "string", "description": "Parameter key name"}
 							},
 							"required": ["matchType", "matchValue", "key"]
