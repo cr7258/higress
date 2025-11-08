@@ -3,6 +3,7 @@ package provider
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"path"
@@ -130,6 +131,11 @@ const (
 	providerTypeDify       = "dify"
 	providerTypeBedrock    = "bedrock"
 	providerTypeVertex     = "vertex"
+	providerTypeTriton     = "triton"
+	providerTypeOpenRouter = "openrouter"
+	providerTypeLongcat    = "longcat"
+	providerTypeFireworks  = "fireworks"
+	providerTypeVllm       = "vllm"
 
 	protocolOpenAI   = "openai"
 	protocolOriginal = "original"
@@ -208,6 +214,11 @@ var (
 		providerTypeDify:       &difyProviderInitializer{},
 		providerTypeBedrock:    &bedrockProviderInitializer{},
 		providerTypeVertex:     &vertexProviderInitializer{},
+		providerTypeTriton:     &tritonProviderInitializer{},
+		providerTypeOpenRouter: &openrouterProviderInitializer{},
+		providerTypeLongcat:    &longcatProviderInitializer{},
+		providerTypeFireworks:  &fireworksProviderInitializer{},
+		providerTypeVllm:       &vllmProviderInitializer{},
 	}
 )
 
@@ -393,6 +404,18 @@ type ProviderConfig struct {
 	// @Title zh-CN 首包超时
 	// @Description zh-CN 流式请求中收到上游服务第一个响应包的超时时间，单位为毫秒。默认值为 0，表示不开启首包超时
 	firstByteTimeout uint32 `required:"false" yaml:"firstByteTimeout" json:"firstByteTimeout"`
+	// @Title zh-CN Triton Model Version
+	// @Description 仅适用于 NVIDIA Triton Interference Server :path 中的 modelVersion 参考："https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/protocol/extension_generate.html"
+	tritonModelVersion string `required:"false" yaml:"tritonModelVersion" json:"tritonModelVersion"`
+	// @Title zh-CN Triton Server 部署的 Domain
+	// @Description 仅适用于 NVIDIA Triton Interference Server :path 中的 modelVersion 参考："https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/protocol/extension_generate.html"
+	tritonDomain string `required:"false" yaml:"tritonDomain" json:"tritonDomain"`
+	// @Title zh-CN vLLM自定义后端URL
+	// @Description zh-CN 仅适用于vLLM服务。vLLM服务的完整URL，包含协议、域名、端口等
+	vllmCustomUrl string `required:"false" yaml:"vllmCustomUrl" json:"vllmCustomUrl"`
+	// @Title zh-CN vLLM主机地址
+	// @Description zh-CN 仅适用于vLLM服务，指定vLLM服务器的主机地址，例如：vllm-service.cluster.local
+	vllmServerHost string `required:"false" yaml:"vllmServerHost" json:"vllmServerHost"`
 }
 
 func (c *ProviderConfig) GetId() string {
@@ -405,6 +428,14 @@ func (c *ProviderConfig) GetType() string {
 
 func (c *ProviderConfig) GetProtocol() string {
 	return c.protocol
+}
+
+func (c *ProviderConfig) GetVllmCustomUrl() string {
+	return c.vllmCustomUrl
+}
+
+func (c *ProviderConfig) GetVllmServerHost() string {
+	return c.vllmServerHost
 }
 
 func (c *ProviderConfig) IsOpenAIProtocol() bool {
@@ -432,7 +463,12 @@ func (c *ProviderConfig) FromJson(json gjson.Result) {
 		c.qwenFileIds = append(c.qwenFileIds, fileId.String())
 	}
 	c.qwenEnableSearch = json.Get("qwenEnableSearch").Bool()
-	c.qwenEnableCompatible = json.Get("qwenEnableCompatible").Bool()
+	if compatible := json.Get("qwenEnableCompatible"); compatible.Exists() {
+		c.qwenEnableCompatible = compatible.Bool()
+	} else {
+		// Default use official compatiable mode
+		c.qwenEnableCompatible = true
+	}
 	c.qwenDomain = json.Get("qwenDomain").String()
 	if c.qwenDomain != "" {
 		// TODO: validate the domain, if not valid, set to default
@@ -522,10 +558,9 @@ func (c *ProviderConfig) FromJson(json gjson.Result) {
 		c.reasoningContentMode = strings.ToLower(c.reasoningContentMode)
 		switch c.reasoningContentMode {
 		case reasoningBehaviorPassThrough, reasoningBehaviorIgnore, reasoningBehaviorConcat:
-			break
+			// valid values, no action needed
 		default:
 			c.reasoningContentMode = reasoningBehaviorPassThrough
-			break
 		}
 	}
 
@@ -549,6 +584,10 @@ func (c *ProviderConfig) FromJson(json gjson.Result) {
 	c.inputVariable = json.Get("inputVariable").String()
 	c.outputVariable = json.Get("outputVariable").String()
 
+	// NVIDIA triton
+	c.tritonModelVersion = json.Get("tritonModelVersion").String()
+	c.tritonDomain = json.Get("tritonDomain").String()
+
 	c.capabilities = make(map[string]string)
 	for capability, pathJson := range json.Get("capabilities").Map() {
 		// 过滤掉不受支持的能力
@@ -568,6 +607,8 @@ func (c *ProviderConfig) FromJson(json gjson.Result) {
 	if c.basePath != "" && c.basePathHandling == "" {
 		c.basePathHandling = basePathHandlingRemovePrefix
 	}
+	c.vllmServerHost = json.Get("vllmServerHost").String()
+	c.vllmCustomUrl = json.Get("vllmCustomUrl").String()
 }
 
 func (c *ProviderConfig) Validate() error {
@@ -811,6 +852,7 @@ func ExtractStreamingEvents(ctx wrapper.HttpContext, chunk []byte) []StreamEvent
 			value := string(body[valueStartIndex:i])
 			currentEvent.SetValue(currentKey, value)
 		} else {
+			currentEvent.RawEvent = string(body[eventStartIndex : i+1])
 			// Extra new line. The current event is complete.
 			events = append(events, *currentEvent)
 			// Reset event parsing state.
@@ -832,7 +874,14 @@ func (c *ProviderConfig) isSupportedAPI(apiName ApiName) bool {
 	return exist
 }
 
+func (c *ProviderConfig) IsSupportedAPI(apiName ApiName) bool {
+	return c.isSupportedAPI(apiName)
+}
+
 func (c *ProviderConfig) setDefaultCapabilities(capabilities map[string]string) {
+	if c.capabilities == nil {
+		c.capabilities = make(map[string]string)
+	}
 	for capability, path := range capabilities {
 		c.capabilities[capability] = path
 	}
@@ -855,8 +904,22 @@ func (c *ProviderConfig) handleRequestBody(
 		return types.ActionContinue, nil
 	}
 
-	// use openai protocol
 	var err error
+
+	// handle claude protocol input - auto-detect based on conversion marker
+	// If main.go detected a Claude request that needs conversion, convert the body
+	needClaudeConversion, _ := ctx.GetContext("needClaudeResponseConversion").(bool)
+	if needClaudeConversion {
+		// Convert Claude protocol to OpenAI protocol
+		converter := &ClaudeToOpenAIConverter{}
+		body, err = converter.ConvertClaudeRequestToOpenAI(body)
+		if err != nil {
+			return types.ActionContinue, fmt.Errorf("failed to convert claude request to openai: %v", err)
+		}
+		log.Debugf("[Auto Protocol] converted Claude request body to OpenAI format")
+	}
+
+	// use openai protocol (either original openai or converted from claude)
 	if handler, ok := provider.(TransformRequestBodyHandler); ok {
 		body, err = handler.TransformRequestBody(ctx, apiName, body)
 	} else if handler, ok := provider.(TransformRequestBodyHeadersHandler); ok {

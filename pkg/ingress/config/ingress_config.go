@@ -49,28 +49,28 @@ import (
 	listersv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
-	higressext "github.com/alibaba/higress/api/extensions/v1alpha1"
-	higressv1 "github.com/alibaba/higress/api/networking/v1"
-	extlisterv1 "github.com/alibaba/higress/client/pkg/listers/extensions/v1alpha1"
-	netlisterv1 "github.com/alibaba/higress/client/pkg/listers/networking/v1"
-	"github.com/alibaba/higress/pkg/cert"
-	higressconst "github.com/alibaba/higress/pkg/config/constants"
-	"github.com/alibaba/higress/pkg/ingress/kube/annotations"
-	"github.com/alibaba/higress/pkg/ingress/kube/common"
-	"github.com/alibaba/higress/pkg/ingress/kube/configmap"
-	"github.com/alibaba/higress/pkg/ingress/kube/gateway"
-	"github.com/alibaba/higress/pkg/ingress/kube/http2rpc"
-	"github.com/alibaba/higress/pkg/ingress/kube/ingress"
-	"github.com/alibaba/higress/pkg/ingress/kube/ingressv1"
-	"github.com/alibaba/higress/pkg/ingress/kube/mcpbridge"
-	"github.com/alibaba/higress/pkg/ingress/kube/mcpserver"
-	"github.com/alibaba/higress/pkg/ingress/kube/secret"
-	"github.com/alibaba/higress/pkg/ingress/kube/util"
-	"github.com/alibaba/higress/pkg/ingress/kube/wasmplugin"
-	. "github.com/alibaba/higress/pkg/ingress/log"
-	"github.com/alibaba/higress/pkg/kube"
-	"github.com/alibaba/higress/registry"
-	"github.com/alibaba/higress/registry/reconcile"
+	higressext "github.com/alibaba/higress/v2/api/extensions/v1alpha1"
+	higressv1 "github.com/alibaba/higress/v2/api/networking/v1"
+	extlisterv1 "github.com/alibaba/higress/v2/client/pkg/listers/extensions/v1alpha1"
+	netlisterv1 "github.com/alibaba/higress/v2/client/pkg/listers/networking/v1"
+	"github.com/alibaba/higress/v2/pkg/cert"
+	higressconst "github.com/alibaba/higress/v2/pkg/config/constants"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/annotations"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/common"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/configmap"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/gateway"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/http2rpc"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/ingress"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/ingressv1"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/mcpbridge"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/mcpserver"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/secret"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/util"
+	"github.com/alibaba/higress/v2/pkg/ingress/kube/wasmplugin"
+	. "github.com/alibaba/higress/v2/pkg/ingress/log"
+	"github.com/alibaba/higress/v2/pkg/kube"
+	"github.com/alibaba/higress/v2/registry"
+	"github.com/alibaba/higress/v2/registry/reconcile"
 )
 
 var (
@@ -292,7 +292,7 @@ func (m *IngressConfig) List(typ config.GroupVersionKind, namespace string) []co
 		typ != gvk.WasmPlugin {
 		return nil
 	}
-	var configs = make([]config.Config, 0)
+	configs := make([]config.Config, 0)
 
 	if configsFromIngress := m.listFromIngressControllers(typ, namespace); configsFromIngress != nil {
 		// Process templates for ingress configs
@@ -579,9 +579,11 @@ func (m *IngressConfig) convertVirtualService(configs []common.WrapperConfig) []
 
 		cleanHost := common.CleanHost(host)
 		// namespace/name, name format: (istio cluster id)-host
-		gateways := []string{m.namespace + "/" +
-			common.CreateConvertedName(m.clusterId.String(), cleanHost),
-			common.CreateConvertedName(constants.IstioIngressGatewayName, cleanHost)}
+		gateways := []string{
+			m.namespace + "/" +
+				common.CreateConvertedName(m.clusterId.String(), cleanHost),
+			common.CreateConvertedName(constants.IstioIngressGatewayName, cleanHost),
+		}
 
 		wrapperVS, exist := convertOptions.VirtualServices[host]
 		if !exist {
@@ -628,6 +630,7 @@ func (m *IngressConfig) convertEnvoyFilter(convertOptions *common.ConvertOptions
 	mappings := map[string]*common.Rule{}
 
 	initHttp2RpcGlobalConfig := true
+	initMcpSseGlobalFilter := true
 	for _, routes := range convertOptions.HTTPRoutes {
 		for _, route := range routes {
 			if strings.HasSuffix(route.HTTPRoute.Name, "app-root") {
@@ -644,6 +647,19 @@ func (m *IngressConfig) convertEnvoyFilter(convertOptions *common.ConvertOptions
 					IngressLog.Infof("Append http2rpc EnvoyFilter for name %s", http2rpc.Name)
 					envoyFilters = append(envoyFilters, *envoyFilter)
 					initHttp2RpcGlobalConfig = false
+				}
+			}
+
+			loadBalance := route.WrapperConfig.AnnotationsConfig.LoadBalance
+			if loadBalance != nil && loadBalance.McpSseStateful {
+				IngressLog.Infof("Found MCP SSE stateful session for route %s", route.HTTPRoute.Name)
+				envoyFilter, err := m.constructMcpSseStatefulSessionEnvoyFilter(route, m.namespace, initMcpSseGlobalFilter, loadBalance.McpSseStatefulKey)
+				if err != nil {
+					IngressLog.Errorf("Construct MCP SSE stateful session EnvoyFilter error %v", err)
+				} else {
+					IngressLog.Infof("Append MCP SSE stateful session EnvoyFilter for route %s", route.HTTPRoute.Name)
+					envoyFilters = append(envoyFilters, *envoyFilter)
+					initMcpSseGlobalFilter = false
 				}
 			}
 
@@ -1511,7 +1527,7 @@ func (m *IngressConfig) constructHttp2RpcEnvoyFilter(http2rpcConfig *annotations
 	return &config.Config{
 		Meta: config.Meta{
 			GroupVersionKind: gvk.EnvoyFilter,
-			Name:             common.CreateConvertedName(constants.IstioIngressGatewayName, "http2rpc", http2rpcConfig.Name, "route", httpRoute.Name),
+			Name:             common.CreateConvertedName(constants.IstioIngressGatewayName, "http2rpc", http2rpcConfig.Name, "route", common.ConvertToDNSLabelValid(httpRoute.Name)),
 			Namespace:        namespace,
 		},
 		Spec: &networking.EnvoyFilter{
@@ -1549,19 +1565,19 @@ func (m *IngressConfig) constructHttp2RpcMethods(dubbo *higressv1.DubboService) 
 	}`
 	var methods []interface{}
 	for _, serviceMethod := range dubbo.GetMethods() {
-		var method = make(map[string]interface{})
+		method := make(map[string]interface{})
 		method["name"] = serviceMethod.GetServiceMethod()
 		var params []interface{}
 		// paramFromEntireBody is for methods with single parameter. So when paramFromEntireBody exists, we just ignore params.
-		var paramFromEntireBody = serviceMethod.GetParamFromEntireBody()
+		paramFromEntireBody := serviceMethod.GetParamFromEntireBody()
 		if paramFromEntireBody != nil {
-			var param = make(map[string]interface{})
+			param := make(map[string]interface{})
 			param["extract_key_spec"] = Http2RpcParamSourceMap()["BODY"]
 			param["mapping_type"] = paramFromEntireBody.GetParamType()
 			params = append(params, param)
 		} else {
 			for _, methodParam := range serviceMethod.GetParams() {
-				var param = make(map[string]interface{})
+				param := make(map[string]interface{})
 				param["extract_key"] = methodParam.GetParamKey()
 				param["extract_key_spec"] = Http2RpcParamSourceMap()[methodParam.GetParamSource()]
 				param["mapping_type"] = methodParam.GetParamType()
@@ -1569,12 +1585,12 @@ func (m *IngressConfig) constructHttp2RpcMethods(dubbo *higressv1.DubboService) 
 			}
 		}
 		method["parameter_mapping"] = params
-		var path_matcher = make(map[string]interface{})
+		path_matcher := make(map[string]interface{})
 		path_matcher["match_http_method_spec"] = Http2RpcMethodMap()[serviceMethod.HttpMethods[0]]
 		path_matcher["match_pattern"] = serviceMethod.GetHttpPath()
 		method["path_matcher"] = path_matcher
-		var passthrough_setting = make(map[string]interface{})
-		var headersAttach = serviceMethod.GetHeadersAttach()
+		passthrough_setting := make(map[string]interface{})
+		headersAttach := serviceMethod.GetHeadersAttach()
 		if headersAttach == "" {
 			passthrough_setting["passthrough_all_headers"] = false
 		} else if headersAttach == "*" {
@@ -1585,8 +1601,8 @@ func (m *IngressConfig) constructHttp2RpcMethods(dubbo *higressv1.DubboService) 
 		method["passthrough_setting"] = passthrough_setting
 		methods = append(methods, method)
 	}
-	var serviceMapping = make(map[string]interface{})
-	var dubboServiceGroup = dubbo.GetGroup()
+	serviceMapping := make(map[string]interface{})
+	dubboServiceGroup := dubbo.GetGroup()
 	if dubboServiceGroup != "" {
 		serviceMapping["group"] = dubboServiceGroup
 	}
@@ -1938,6 +1954,99 @@ func (m *IngressConfig) Patch(config.Config, config.PatchFunc) (string, error) {
 
 func (m *IngressConfig) Delete(config.GroupVersionKind, string, string, *string) error {
 	return common.ErrUnsupportedOp
+}
+
+func (m *IngressConfig) constructMcpSseStatefulSessionEnvoyFilter(route *common.WrapperHTTPRoute, namespace string, initGlobalFilter bool, mcpSseStatefulKey string) (*config.Config, error) {
+	httpRoute := route.HTTPRoute
+
+	var configPatches []*networking.EnvoyFilter_EnvoyConfigObjectPatch
+
+	// Add global HTTP filter if this is the first route using MCP SSE stateful session
+	if initGlobalFilter {
+		configPatches = append(configPatches, &networking.EnvoyFilter_EnvoyConfigObjectPatch{
+			ApplyTo: networking.EnvoyFilter_HTTP_FILTER,
+			Match: &networking.EnvoyFilter_EnvoyConfigObjectMatch{
+				Context: networking.EnvoyFilter_GATEWAY,
+				ObjectTypes: &networking.EnvoyFilter_EnvoyConfigObjectMatch_Listener{
+					Listener: &networking.EnvoyFilter_ListenerMatch{
+						FilterChain: &networking.EnvoyFilter_ListenerMatch_FilterChainMatch{
+							Filter: &networking.EnvoyFilter_ListenerMatch_FilterMatch{
+								Name: "envoy.filters.network.http_connection_manager",
+								SubFilter: &networking.EnvoyFilter_ListenerMatch_SubFilterMatch{
+									Name: "envoy.filters.http.router",
+								},
+							},
+						},
+					},
+				},
+			},
+			Patch: &networking.EnvoyFilter_Patch{
+				Operation: networking.EnvoyFilter_Patch_INSERT_BEFORE,
+				Value: buildPatchStruct(`{
+					"name": "envoy.filters.http.mcp_sse_stateful_session",
+					"typed_config": {
+						"@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+						"type_url": "type.googleapis.com/envoy.extensions.filters.http.mcp_sse_stateful_session.v3alpha.McpSseStatefulSession"
+					}
+				}`),
+			},
+		})
+	}
+
+	// Add route-specific configuration
+	configPatches = append(configPatches, &networking.EnvoyFilter_EnvoyConfigObjectPatch{
+		ApplyTo: networking.EnvoyFilter_HTTP_ROUTE,
+		Match: &networking.EnvoyFilter_EnvoyConfigObjectMatch{
+			Context: networking.EnvoyFilter_GATEWAY,
+			ObjectTypes: &networking.EnvoyFilter_EnvoyConfigObjectMatch_RouteConfiguration{
+				RouteConfiguration: &networking.EnvoyFilter_RouteConfigurationMatch{
+					Vhost: &networking.EnvoyFilter_RouteConfigurationMatch_VirtualHostMatch{
+						Route: &networking.EnvoyFilter_RouteConfigurationMatch_RouteMatch{
+							Name: httpRoute.Name,
+						},
+					},
+				},
+			},
+		},
+		Patch: &networking.EnvoyFilter_Patch{
+			Operation: networking.EnvoyFilter_Patch_MERGE,
+			Value: buildPatchStruct(fmt.Sprintf(`{
+				"typed_per_filter_config": {
+					"envoy.filters.http.mcp_sse_stateful_session": {
+						"@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+						"type_url": "type.googleapis.com/envoy.extensions.filters.http.mcp_sse_stateful_session.v3alpha.McpSseStatefulSessionPerRoute",
+						"value": {
+							"mcp_sse_stateful_session": {
+								"session_state": {
+									"name": "envoy.http.mcp_sse_stateful_session.envelope",
+									"typed_config": {
+										"@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+										"type_url": "type.googleapis.com/envoy.extensions.http.mcp_sse_stateful_session.envelope.v3alpha.EnvelopeSessionState",
+										"value": {
+											"param_name": "%s",
+											"chunk_end_patterns": ["\r\n\r\n", "\n\n", "\r\r"]
+										}
+									}
+								},
+								"strict": true
+							}
+						}
+					}
+				}
+			}`, mcpSseStatefulKey)),
+		},
+	})
+
+	return &config.Config{
+		Meta: config.Meta{
+			GroupVersionKind: gvk.EnvoyFilter,
+			Name:             common.CreateConvertedName(constants.IstioIngressGatewayName, "mcp-lb-route", common.ConvertToDNSLabelValid(httpRoute.Name)),
+			Namespace:        namespace,
+		},
+		Spec: &networking.EnvoyFilter{
+			ConfigPatches: configPatches,
+		},
+	}, nil
 }
 
 func (m *IngressConfig) notifyXDSFullUpdate(gvk config.GroupVersionKind, reason istiomodel.TriggerReason, updatedConfigName *util.ClusterNamespacedName) {

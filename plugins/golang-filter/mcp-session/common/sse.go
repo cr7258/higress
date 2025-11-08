@@ -201,6 +201,18 @@ func (s *SSEServer) HandleMessage(w http.ResponseWriter, r *http.Request, body j
 		SessionID: sessionID,
 	})
 
+	// Extract Authorization header from HTTP request and add to context
+	// This is used for Higress Console API authentication
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		ctx = WithAuthHeader(ctx, authHeader)
+	}
+
+	// Extract X-Istiod-Token header from HTTP request and add to context
+	// This is used for Istiod debug API authentication
+	if istiodToken := r.Header.Get("X-Istiod-Token"); istiodToken != "" {
+		ctx = WithIstiodToken(ctx, istiodToken)
+	}
+
 	//TODO： check session id
 	// _, ok := s.sessions.Load(sessionID)
 	// if !ok {
@@ -223,7 +235,12 @@ func (s *SSEServer) HandleMessage(w http.ResponseWriter, r *http.Request, body j
 		}
 		// Send HTTP response
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		jsonData, err := json.Marshal(response)
+		if err != nil {
+			api.LogErrorf("Failed to marshal SSE Message response: %v", err)
+			status = http.StatusInternalServerError
+		}
+		w.Write(jsonData)
 	} else {
 		// For notifications, just send 202 Accepted with no body
 		w.WriteHeader(http.StatusAccepted)
